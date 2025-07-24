@@ -5,6 +5,7 @@ const CONFIG = {
     // API Configuration
     GEMINI_API_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent',
     NOMINATIM_API_URL: 'https://nominatim.openstreetmap.org/reverse',
+    GOOGLE_TTS_API_URL: 'https://texttospeech.googleapis.com/v1/text:synthesize',
     
     // Geolocation Settings
     GEOLOCATION_OPTIONS: {
@@ -29,17 +30,40 @@ const CONFIG = {
     DEFAULT_SPEECH_PITCH: 1.0,
     DEFAULT_SPEECH_VOLUME: 1.0,
     
+    // Google TTS Settings
+    GOOGLE_TTS_VOICES: {
+        'de-DE-Neural2-A': { name: 'Amelia (weiblich)', gender: 'FEMALE' },
+        'de-DE-Neural2-B': { name: 'Bernd (männlich)', gender: 'MALE' },
+        'de-DE-Neural2-C': { name: 'Clara (weiblich)', gender: 'FEMALE' },
+        'de-DE-Neural2-D': { name: 'Daniel (männlich)', gender: 'MALE' },
+        'de-DE-Wavenet-A': { name: 'Anna (weiblich)', gender: 'FEMALE' },
+        'de-DE-Wavenet-B': { name: 'Boris (männlich)', gender: 'MALE' },
+        'de-DE-Wavenet-C': { name: 'Claudia (weiblich)', gender: 'FEMALE' },
+        'de-DE-Wavenet-D': { name: 'David (männlich)', gender: 'MALE' }
+    },
+    
+    DEFAULT_GOOGLE_TTS_VOICE: 'de-DE-Neural2-B',
+    DEFAULT_GOOGLE_TTS_AUDIO_CONFIG: {
+        audioEncoding: 'MP3',
+        speakingRate: 1.0,
+        pitch: 0.0,
+        volumeGainDb: 0.0
+    },
+    
     // Cache Settings
     CACHE_DURATION: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
     
     // Local Storage Keys
     STORAGE_KEYS: {
         API_KEY: 'travel_stories_api_key',
+        GOOGLE_TTS_API_KEY: 'travel_stories_google_tts_api_key',
         LAST_POSITION: 'travel_stories_last_position',
         SETTINGS: 'travel_stories_settings',
         DARK_MODE: 'travel_stories_dark_mode',
         STORY_CACHE: 'travel_stories_cache',
-        CUSTOM_PROMPT: 'travel_stories_custom_prompt'
+        CUSTOM_PROMPT: 'travel_stories_custom_prompt',
+        TTS_PREFERENCE: 'travel_stories_tts_preference',
+        SELECTED_VOICE: 'travel_stories_selected_voice'
     },
     
     // Error Messages
@@ -56,7 +80,11 @@ const CONFIG = {
         RATE_LIMITED: 'API-Rate-Limit erreicht - Bitte warten',
         GEMINI_AUTH_ERROR: 'Ungültiger API-Schlüssel - Überprüfe deine Gemini-Konfiguration',
         GEMINI_QUOTA_ERROR: 'Gemini API-Limit erreicht - Versuche es später erneut',
-        STORY_GENERATION_ERROR: 'Fehler beim Generieren der Geschichte'
+        STORY_GENERATION_ERROR: 'Fehler beim Generieren der Geschichte',
+        GOOGLE_TTS_ERROR: 'Fehler bei Google Text-to-Speech',
+        GOOGLE_TTS_AUTH_ERROR: 'Ungültiger Google TTS API-Schlüssel',
+        GOOGLE_TTS_QUOTA_ERROR: 'Google TTS API-Limit erreicht',
+        AUDIO_PLAYBACK_ERROR: 'Fehler bei der Audio-Wiedergabe'
     },
     
     // Fallback Stories for common German regions

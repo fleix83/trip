@@ -11,6 +11,8 @@ class TravelStoriesApp {
         this.speechQueue = [];
         this.selectedVoice = null;
         this.speechPaused = false;
+        this.currentAudio = null; // For HTML5 Audio (Google TTS)
+        this.audioBlobs = []; // Track blob URLs for cleanup
         this.locationWatchId = null;
         this.storyCheckInterval = null;
         this.debugMode = false;
@@ -135,6 +137,66 @@ class TravelStoriesApp {
             });
         }
         
+        // Google TTS API key save
+        const saveGoogleTTSKeyBtn = document.getElementById('save-google-tts-key');
+        const googleTTSKeyInput = document.getElementById('google-tts-api-key');
+        
+        if (saveGoogleTTSKeyBtn && googleTTSKeyInput) {
+            saveGoogleTTSKeyBtn.addEventListener('click', () => {
+                let ttsApiKey = googleTTSKeyInput.value.trim();
+                
+                // If input is empty but we have a saved key, use the saved key
+                if (!ttsApiKey && googleTTSKeyInput.dataset.savedKey) {
+                    ttsApiKey = googleTTSKeyInput.dataset.savedKey;
+                    console.log('💾 Using existing saved Google TTS key...');
+                } else {
+                    console.log('💾 Attempting to save new Google TTS key...');
+                    console.log('  Input value length:', ttsApiKey.length);
+                }
+                
+                if (ttsApiKey) {
+                    try {
+                        localStorage.setItem(CONFIG.STORAGE_KEYS.GOOGLE_TTS_API_KEY, ttsApiKey);
+                        const savedKey = localStorage.getItem(CONFIG.STORAGE_KEYS.GOOGLE_TTS_API_KEY);
+                        
+                        if (savedKey === ttsApiKey) {
+                            this.showMessage('✅ Google TTS API-Schlüssel erfolgreich gespeichert!');
+                            console.log('✅ Google TTS API key saved and verified successfully');
+                            
+                            // Update the placeholder to show the saved key
+                            const maskedKey = ttsApiKey.length > 12 ? 
+                                ttsApiKey.substring(0, 8) + '...' + ttsApiKey.slice(-4) :
+                                ttsApiKey;
+                            googleTTSKeyInput.placeholder = `Gespeichert: ${maskedKey}`;
+                            googleTTSKeyInput.dataset.savedKey = ttsApiKey;
+                        } else {
+                            throw new Error('Speicherung fehlgeschlagen');
+                        }
+                        
+                        googleTTSKeyInput.value = ''; // Clear input for security
+                        
+                    } catch (error) {
+                        console.error('❌ Google TTS localStorage error:', error);
+                        this.showError('⚠️ Google TTS Speichern fehlgeschlagen');
+                        
+                        try {
+                            sessionStorage.setItem(CONFIG.STORAGE_KEYS.GOOGLE_TTS_API_KEY, ttsApiKey);
+                            this.showMessage('⚠️ Google TTS API-Key temporär gespeichert');
+                        } catch (sessionError) {
+                            this.showError('❌ Google TTS Speichern nicht möglich');
+                        }
+                    }
+                } else {
+                    // Empty input - remove the key
+                    localStorage.removeItem(CONFIG.STORAGE_KEYS.GOOGLE_TTS_API_KEY);
+                    sessionStorage.removeItem(CONFIG.STORAGE_KEYS.GOOGLE_TTS_API_KEY);
+                    googleTTSKeyInput.placeholder = 'Google TTS API-Schlüssel eingeben (optional)';
+                    googleTTSKeyInput.dataset.savedKey = '';
+                    this.showMessage('🗑️ Google TTS API-Schlüssel entfernt');
+                }
+            });
+        }
+        
         // Debug mode toggle
         const debugModeCheckbox = document.getElementById('debug-mode');
         if (debugModeCheckbox) {
@@ -234,6 +296,17 @@ class TravelStoriesApp {
             });
         }
         
+        // TTS Voice selection
+        const voiceSelect = document.getElementById('tts-voice-select');
+        if (voiceSelect) {
+            voiceSelect.addEventListener('change', () => {
+                const selectedVoice = voiceSelect.value;
+                localStorage.setItem(CONFIG.STORAGE_KEYS.SELECTED_VOICE, selectedVoice);
+                console.log('🎤 TTS voice changed to:', CONFIG.GOOGLE_TTS_VOICES[selectedVoice]?.name || selectedVoice);
+                this.showMessage(`✅ Stimme geändert zu: ${CONFIG.GOOGLE_TTS_VOICES[selectedVoice]?.name || selectedVoice}`);
+            });
+        }
+        
         console.log('Events bound successfully');
     }
 
@@ -279,6 +352,32 @@ class TravelStoriesApp {
             if (connectionStatus) {
                 const storageType = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY) ? 'permanent' : 'temporär';
                 connectionStatus.innerHTML = `🟢 API-Schlüssel konfiguriert (${storageType})`;
+            }
+        }
+        
+        // Load Google TTS API key
+        const savedGoogleTTSKey = localStorage.getItem(CONFIG.STORAGE_KEYS.GOOGLE_TTS_API_KEY) || 
+                                  sessionStorage.getItem(CONFIG.STORAGE_KEYS.GOOGLE_TTS_API_KEY);
+        
+        if (savedGoogleTTSKey) {
+            const googleTTSKeyInput = document.getElementById('google-tts-api-key');
+            if (googleTTSKeyInput) {
+                const maskedKey = savedGoogleTTSKey.length > 12 ? 
+                    savedGoogleTTSKey.substring(0, 8) + '...' + savedGoogleTTSKey.slice(-4) :
+                    savedGoogleTTSKey;
+                googleTTSKeyInput.placeholder = `Gespeichert: ${maskedKey}`;
+                googleTTSKeyInput.dataset.savedKey = savedGoogleTTSKey;
+            }
+        }
+        
+        // Load selected TTS voice
+        const savedVoice = localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_VOICE);
+        const voiceSelect = document.getElementById('tts-voice-select');
+        if (voiceSelect) {
+            if (savedVoice && CONFIG.GOOGLE_TTS_VOICES[savedVoice]) {
+                voiceSelect.value = savedVoice;
+            } else {
+                voiceSelect.value = CONFIG.DEFAULT_GOOGLE_TTS_VOICE;
             }
         }
         
@@ -1008,19 +1107,188 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
         }
     }
 
-    speakStory(text) {
+    // Call Google Text-to-Speech API
+    async callGoogleTTS(text, apiKey) {
+        if (!apiKey || !apiKey.startsWith('AIza')) {
+            throw new Error(CONFIG.ERRORS.GOOGLE_TTS_AUTH_ERROR);
+        }
+
+        if (!text || text.trim().length === 0) {
+            throw new Error('Kein Text für TTS angegeben');
+        }
+
+        const selectedVoice = localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_VOICE) || CONFIG.DEFAULT_GOOGLE_TTS_VOICE;
+        const voiceConfig = CONFIG.GOOGLE_TTS_VOICES[selectedVoice];
+
+        const requestBody = {
+            input: { text: text.trim() },
+            voice: {
+                languageCode: selectedVoice.substring(0, 5), // e.g., 'de-DE'
+                name: selectedVoice,
+                ssmlGender: voiceConfig?.gender || 'MALE'
+            },
+            audioConfig: {
+                ...CONFIG.DEFAULT_GOOGLE_TTS_AUDIO_CONFIG,
+                speakingRate: this.speechRate || CONFIG.DEFAULT_SPEECH_RATE
+            }
+        };
+
+        try {
+            console.log('🎤 Calling Google TTS API...');
+            console.log(`  Voice: ${voiceConfig?.name || selectedVoice}`);
+            console.log(`  Text length: ${text.length} characters`);
+
+            const response = await this.fetchWithRetry(
+                `${CONFIG.GOOGLE_TTS_API_URL}?key=${apiKey}`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                }
+            );
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                
+                if (response.status === 400) {
+                    throw new Error(CONFIG.ERRORS.GOOGLE_TTS_AUTH_ERROR);
+                } else if (response.status === 429) {
+                    throw new Error(CONFIG.ERRORS.GOOGLE_TTS_QUOTA_ERROR);
+                } else {
+                    throw new Error(`Google TTS API Error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+                }
+            }
+
+            const data = await response.json();
+            
+            if (!data.audioContent) {
+                throw new Error('Keine Audio-Daten erhalten');
+            }
+
+            console.log('✅ Google TTS API call successful');
+            return data.audioContent; // Base64 encoded MP3
+            
+        } catch (error) {
+            console.error('❌ Google TTS API call failed:', error);
+            
+            if (error.message.includes('GOOGLE_TTS_') || error.message.includes('Ungültige')) {
+                throw error;
+            }
+            
+            throw new Error(`${CONFIG.ERRORS.GOOGLE_TTS_ERROR}: ${error.message}`);
+        }
+    }
+
+    // Convert base64 audio to playable blob URL
+    createAudioFromBase64(base64Audio) {
+        try {
+            const binaryString = atob(base64Audio);
+            const bytes = new Uint8Array(binaryString.length);
+            
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            
+            const blob = new Blob([bytes], { type: 'audio/mpeg' });
+            return URL.createObjectURL(blob);
+            
+        } catch (error) {
+            throw new Error(`Fehler beim Erstellen der Audio-Datei: ${error.message}`);
+        }
+    }
+
+    async speakStory(text) {
         if (!text) {
             console.warn('No text to speak');
             return;
         }
 
         try {
-            // Cancel any current speech
+            // Cancel any current speech/audio
             this.stopSpeech();
 
+            // Try Google TTS first if API key is available
+            const googleTTSKey = localStorage.getItem(CONFIG.STORAGE_KEYS.GOOGLE_TTS_API_KEY) || 
+                                sessionStorage.getItem(CONFIG.STORAGE_KEYS.GOOGLE_TTS_API_KEY);
+
+            if (googleTTSKey) {
+                try {
+                    console.log('🎯 Attempting Google TTS...');
+                    const base64Audio = await this.callGoogleTTS(text, googleTTSKey);
+                    const audioUrl = this.createAudioFromBase64(base64Audio);
+                    
+                    // Clean up previous audio blobs
+                    this.audioBlobs.forEach(url => URL.revokeObjectURL(url));
+                    this.audioBlobs = [audioUrl];
+                    
+                    // Create and configure HTML5 Audio
+                    this.currentAudio = new Audio(audioUrl);
+                    this.currentAudio.preload = 'auto';
+                    
+                    // Set up event handlers
+                    this.currentAudio.addEventListener('loadstart', () => {
+                        console.log('🔊 Google TTS audio loading...');
+                    });
+                    
+                    this.currentAudio.addEventListener('canplay', () => {
+                        console.log('🎵 Google TTS audio ready to play');
+                    });
+                    
+                    this.currentAudio.addEventListener('play', () => {
+                        console.log('🔊 Google TTS playback started');
+                        this.speechPaused = false;
+                        this.updateSpeechUI(true);
+                    });
+
+                    this.currentAudio.addEventListener('ended', () => {
+                        console.log('🔇 Google TTS playback ended');
+                        this.currentAudio = null;
+                        this.speechPaused = false;
+                        this.updateSpeechUI(false);
+                        this.onSpeechEnd();
+                    });
+
+                    this.currentAudio.addEventListener('error', (event) => {
+                        console.error('❌ Google TTS audio error:', event.error);
+                        this.fallbackToWebSpeech(text);
+                    });
+
+                    this.currentAudio.addEventListener('pause', () => {
+                        this.speechPaused = true;
+                        this.updateSpeechUI(true, true);
+                    });
+
+                    // Start playback
+                    await this.currentAudio.play();
+                    console.log('✅ Google TTS playback started successfully');
+                    return;
+                    
+                } catch (googleTTSError) {
+                    console.warn('⚠️ Google TTS failed, falling back to Web Speech:', googleTTSError.message);
+                    this.fallbackToWebSpeech(text);
+                    return;
+                }
+            }
+
+            // Fallback to Web Speech API
+            console.log('🎯 Using Web Speech API fallback...');
+            this.fallbackToWebSpeech(text);
+
+        } catch (error) {
+            console.error('Speech error:', error);
+            this.showError(`${CONFIG.ERRORS.SPEECH_ERROR}: ${error.message}`);
+            this.showOfflineTextFallback(text);
+        }
+    }
+
+    // Fallback to Web Speech API
+    fallbackToWebSpeech(text) {
+        try {
             // Check if speech synthesis is supported
             if (!this.speechSynthesis) {
-                console.warn('Speech synthesis not supported, using fallback');
+                console.warn('Speech synthesis not supported, using text fallback');
                 this.showOfflineTextFallback(text);
                 return;
             }
@@ -1029,7 +1297,7 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
             this.currentUtterance = new SpeechSynthesisUtterance(text);
             
             // Set speech parameters optimized for driving
-            this.currentUtterance.rate = this.speechRate || 0.9; // Slower for clarity
+            this.currentUtterance.rate = this.speechRate || 0.9;
             this.currentUtterance.pitch = CONFIG.DEFAULT_SPEECH_PITCH;
             this.currentUtterance.volume = CONFIG.DEFAULT_SPEECH_VOLUME;
             this.currentUtterance.lang = 'de-DE';
@@ -1042,12 +1310,12 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
             // Event handlers
             this.currentUtterance.onstart = () => {
                 this.speechPaused = false;
-                console.log('🔊 Speech started');
+                console.log('🔊 Web Speech started');
                 this.updateSpeechUI(true);
             };
 
             this.currentUtterance.onend = () => {
-                console.log('🔇 Speech ended');
+                console.log('🔇 Web Speech ended');
                 this.currentUtterance = null;
                 this.speechPaused = false;
                 this.updateSpeechUI(false);
@@ -1055,12 +1323,10 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
             };
 
             this.currentUtterance.onerror = (event) => {
-                console.error('❌ Speech error:', event.error);
+                console.error('❌ Web Speech error:', event.error);
                 this.currentUtterance = null;
                 this.speechPaused = false;
                 this.updateSpeechUI(false);
-                
-                // Fallback to visual display
                 this.showOfflineTextFallback(text);
             };
 
@@ -1076,39 +1342,63 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
 
             // Start speaking
             this.speechSynthesis.speak(this.currentUtterance);
-
-            console.log('🎤 Speaking story:', text.substring(0, 50) + '...');
+            console.log('🎤 Web Speech started:', text.substring(0, 50) + '...');
 
         } catch (error) {
-            console.error('Speech synthesis error:', error);
-            this.showError(`${CONFIG.ERRORS.SPEECH_ERROR}: ${error.message}`);
+            console.error('Web Speech synthesis error:', error);
             this.showOfflineTextFallback(text);
         }
     }
 
-    // Pause/Resume speech
+    // Pause/Resume speech (handles both Google TTS and Web Speech)
     pauseSpeech() {
-        if (!this.currentUtterance) return;
-        
-        if (this.speechPaused) {
-            this.speechSynthesis.resume();
-            console.log('▶️ Speech resumed');
-        } else {
-            this.speechSynthesis.pause();
-            console.log('⏸️ Speech paused');
+        if (this.currentAudio) {
+            // Google TTS Audio
+            if (this.speechPaused) {
+                this.currentAudio.play();
+                console.log('▶️ Google TTS resumed');
+            } else {
+                this.currentAudio.pause();
+                console.log('⏸️ Google TTS paused');
+            }
+        } else if (this.currentUtterance) {
+            // Web Speech API
+            if (this.speechPaused) {
+                this.speechSynthesis.resume();
+                console.log('▶️ Web Speech resumed');
+            } else {
+                this.speechSynthesis.pause();
+                console.log('⏸️ Web Speech paused');
+            }
         }
     }
 
-    // Stop speech and clear queue
+    // Stop speech and clear queue (handles both Google TTS and Web Speech)
     stopSpeech() {
+        // Stop Google TTS Audio
+        if (this.currentAudio) {
+            this.currentAudio.pause();
+            this.currentAudio.currentTime = 0;
+            this.currentAudio = null;
+            console.log('⏹️ Google TTS stopped');
+        }
+        
+        // Stop Web Speech API
         if (this.speechSynthesis) {
             this.speechSynthesis.cancel();
         }
+        
+        // Clean up
         this.currentUtterance = null;
         this.speechPaused = false;
         this.speechQueue = [];
+        
+        // Clean up audio blobs
+        this.audioBlobs.forEach(url => URL.revokeObjectURL(url));
+        this.audioBlobs = [];
+        
         this.updateSpeechUI(false);
-        console.log('⏹️ Speech stopped');
+        console.log('⏹️ All speech stopped and cleaned up');
     }
 
     // Set voice settings

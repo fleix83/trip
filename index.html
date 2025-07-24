@@ -61,9 +61,27 @@
                         <button id="save-api-key" class="save-btn">💾 Speichern</button>
                     </div>
                     <div class="setting-item">
+                        <label for="google-tts-api-key">Google TTS API Key (für bessere Sprachqualität):</label>
+                        <input type="password" id="google-tts-api-key" placeholder="Google TTS API-Schlüssel eingeben (optional)">
+                        <button id="save-google-tts-key" class="save-btn">💾 Speichern</button>
+                    </div>
+                    <div class="setting-item">
                         <label for="voice-speed">Sprechgeschwindigkeit:</label>
                         <input type="range" id="voice-speed" min="0.5" max="2" step="0.1" value="1">
                         <span id="speed-value">1.0x</span>
+                    </div>
+                    <div class="setting-item">
+                        <label for="tts-voice-select">Google TTS Stimme:</label>
+                        <select id="tts-voice-select">
+                            <option value="de-DE-Neural2-B">Bernd (männlich, Neural)</option>
+                            <option value="de-DE-Neural2-A">Amelia (weiblich, Neural)</option>
+                            <option value="de-DE-Neural2-C">Clara (weiblich, Neural)</option>
+                            <option value="de-DE-Neural2-D">Daniel (männlich, Neural)</option>
+                            <option value="de-DE-Wavenet-B">Boris (männlich, Wavenet)</option>
+                            <option value="de-DE-Wavenet-A">Anna (weiblich, Wavenet)</option>
+                            <option value="de-DE-Wavenet-C">Claudia (weiblich, Wavenet)</option>
+                            <option value="de-DE-Wavenet-D">David (männlich, Wavenet)</option>
+                        </select>
                     </div>
                     <div class="setting-item">
                         <label>

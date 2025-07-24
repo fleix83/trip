@@ -185,7 +185,8 @@ header p {
 
 .setting-item input[type="password"], 
 .setting-item input[type="range"],
-.setting-item textarea {
+.setting-item textarea,
+.setting-item select {
     width: 100%;
     padding: var(--padding-sm);
     border: 1px solid var(--bg-tertiary);
