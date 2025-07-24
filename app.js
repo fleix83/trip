@@ -58,11 +58,18 @@ class TravelStoriesApp {
         
         if (saveApiKeyBtn && apiKeyInput) {
             saveApiKeyBtn.addEventListener('click', () => {
-                const apiKey = apiKeyInput.value.trim();
-                console.log('💾 Attempting to save API key...');
-                console.log('  Input value length:', apiKey.length);
+                let apiKey = apiKeyInput.value.trim();
+                
+                // If input is empty but we have a saved key, use the saved key
+                if (!apiKey && apiKeyInput.dataset.savedKey) {
+                    apiKey = apiKeyInput.dataset.savedKey;
+                    console.log('💾 Using existing saved API key...');
+                } else {
+                    console.log('💾 Attempting to save new API key...');
+                    console.log('  Input value length:', apiKey.length);
+                }
+                
                 console.log('  Storage key:', CONFIG.STORAGE_KEYS.API_KEY);
-                console.log('  CONFIG object:', CONFIG.STORAGE_KEYS);
                 
                 if (apiKey) {
                     try {
@@ -91,12 +98,19 @@ class TravelStoriesApp {
                             if (connectionStatus) {
                                 connectionStatus.innerHTML = '🟢 API-Schlüssel konfiguriert';
                             }
+                            
+                            // Update the placeholder to show the saved key
+                            const maskedKey = apiKey.length > 12 ? 
+                                apiKey.substring(0, 8) + '...' + apiKey.slice(-4) :
+                                apiKey;
+                            apiKeyInput.placeholder = `Gespeichert: ${maskedKey}`;
+                            apiKeyInput.dataset.savedKey = apiKey;
                         } else {
                             throw new Error('Speicherung fehlgeschlagen - Saved key does not match input');
                         }
                         
-                        apiKeyInput.value = ''; // Clear input for security
-                        console.log('🧹 Input field cleared');
+                        apiKeyInput.value = ''; // Clear input for security but keep placeholder
+                        console.log('🧹 Input field cleared, placeholder updated');
                         
                     } catch (error) {
                         console.error('❌ localStorage error:', error);
@@ -218,14 +232,26 @@ class TravelStoriesApp {
             }
         }
         
-        // Check if API key exists (but don't load it for security)
-        const hasApiKey = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY) || 
-                         sessionStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
-        if (hasApiKey) {
+        // Load API key back into input field (but only show first few chars for security)
+        const savedApiKey = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY) || 
+                           sessionStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
+        
+        if (savedApiKey) {
+            const apiKeyInput = document.getElementById('api-key');
+            if (apiKeyInput) {
+                // Show only first 8 and last 4 characters for security
+                const maskedKey = savedApiKey.length > 12 ? 
+                    savedApiKey.substring(0, 8) + '...' + savedApiKey.slice(-4) :
+                    savedApiKey;
+                apiKeyInput.placeholder = `Gespeichert: ${maskedKey}`;
+                // Store the full key in a data attribute for later use
+                apiKeyInput.dataset.savedKey = savedApiKey;
+            }
+            
             const connectionStatus = document.getElementById('connection-status');
             if (connectionStatus) {
                 const storageType = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY) ? 'permanent' : 'temporär';
-                connectionStatus.innerHTML = `🟡 API-Schlüssel konfiguriert (${storageType})`;
+                connectionStatus.innerHTML = `🟢 API-Schlüssel konfiguriert (${storageType})`;
             }
         }
         
@@ -717,22 +743,7 @@ class TravelStoriesApp {
 
     async generateStory(locationInfo) {
         try {
-            const cacheKey = this.createCacheKey(locationInfo);
-            
-            // Check cache first (unless bypassed)
-            const cachedStory = this.getCachedStory(cacheKey);
-            if (cachedStory && !this.bypassCache) {
-                console.log('📋 Using cached story for:', locationInfo.city);
-                console.log('🕒 Cache hit - story from localStorage, no API call made');
-                if (this.debugMode) {
-                    console.log('Cached story:', cachedStory.substring(0, 100) + '...');
-                }
-                return cachedStory;
-            } else if (cachedStory && this.bypassCache) {
-                console.log('🔄 Cache bypassed - will generate new story via API');
-            } else {
-                console.log('📭 No cached story found - will generate new story via API');
-            }
+            console.log('🤖 Generating fresh story via API (no caching)');
             
             // Check API key (try localStorage first, then sessionStorage)
             console.log('🔍 Checking for API key...');
@@ -776,12 +787,7 @@ class TravelStoriesApp {
             // Call Gemini API
             const story = await this.callGeminiAPI(prompt, apiKey);
             
-            // Cache the result
-            this.cacheStory(cacheKey, story);
-            
-            if (this.debugMode) {
-                console.log('Generated new story for:', locationInfo.city);
-            }
+            console.log('✅ Fresh story generated via API for:', locationInfo.city);
             
             return story;
             
@@ -1139,7 +1145,6 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
                 <div id="debug-distance">Distanz: N/A</div>
                 <div id="debug-last-story">Letzte Story: N/A</div>
                 <div id="debug-api-calls">API-Aufrufe: ${this.apiCallCount}</div>
-                <div id="debug-cache-status">Cache: Aktiv</div>
             `;
             document.querySelector('.container').appendChild(debugPanel);
         }
@@ -1184,11 +1189,6 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
         const debugApiCalls = document.getElementById('debug-api-calls');
         if (debugApiCalls) {
             debugApiCalls.textContent = `API-Aufrufe: ${this.apiCallCount}`;
-        }
-        
-        const debugCacheStatus = document.getElementById('debug-cache-status');
-        if (debugCacheStatus) {
-            debugCacheStatus.textContent = `Cache: ${this.bypassCache ? 'Deaktiviert' : 'Aktiv'}`;
         }
     }
 
@@ -1370,7 +1370,6 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
         console.log('  simulationMode:', this.simulationMode);
         console.log('  selectedVoice:', this.selectedVoice?.name || 'None');
         console.log('  apiCallCount:', this.apiCallCount);
-        console.log('  cacheBypass:', this.bypassCache);
         
         // Check browser capabilities
         console.log('🌐 Browser Capabilities:');
@@ -1537,15 +1536,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.diagnose = () => window.travelApp.diagnose();
     window.testApiKeySave = (key) => window.travelApp.testApiKeySave(key);
     window.testStoryGeneration = () => window.travelApp.testStoryGeneration();
-    window.clearCache = () => window.travelApp.clearCache();
-    window.toggleCacheBypass = () => window.travelApp.toggleCacheBypass();
     
     console.log('💡 Debug functions available:');
     console.log('  - diagnose() - Full system diagnostic');
     console.log('  - testApiKeySave("your-key") - Test API key storage');
     console.log('  - testStoryGeneration() - Test story generation with your API key');
-    console.log('  - clearCache() - Clear all cached stories');
-    console.log('  - toggleCacheBypass() - Force new API calls instead of cache');
     
     // Register service worker for PWA functionality
     if ('serviceWorker' in navigator) {
