@@ -1,0 +1,52 @@
+{
+  "name": "Travel Stories - Reisegeschichten",
+  "short_name": "Travel Stories",
+  "description": "GPS-basierte Geschichten während der Autofahrt",
+  "version": "1.0.0",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1a1a1a",
+  "background_color": "#1a1a1a",
+  "lang": "de",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiByeD0iMjAiIGZpbGw9IiM0Q0FGNTAUX18+CjxwYXRoIGQ9Ik0yMCA0MEMyMCAzNy43OTA5IDIxLjc5MDkgMzYgMjQgMzZIMzJDMzQuMjA5MSAzNiAzNiAzNy43OTA5IDM2IDQwVjQ4QzM2IDUwLjIwOTEgMzQuMjA5MSA1MiAzMiA1MkgyNEMyMS43OTA5IDUyIDIwIDUwLjIwOTEgMjAgNDhWNDBaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNNDQgMjhDNDQgMjUuNzkwOSA0NS43OTA5IDI0IDQ4IDI0SDc2Qzc4LjIwOTEgMjQgODAgMjUuNzkwOSA4MCAyOFY3MkM4MCA3NC4yMDkxIDc4LjIwOTEgNzYgNzYgNzZINDhDNDUuNzkwOSA3NiA0NCA3NC4yMDkxIDQ0IDcyVjI4WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiByeD0iMjAiIGZpbGw9IiM0Q0FGNTAX"/CjxwYXRoIGQ9Ik0yMCA0MEM0MCAzNy43OTA5IDIxLjc5MDkgMzYgMjQgMzZIMzJDMzQuMjA5MSAzNiAzNiAzNy43OTA5IDM2IDQwVjQ4QzM2IDUwLjIwOTEgMzQuMjA5MSA1MiAzMiA1MkgyNEMyMS43OTA5IDUyIDIwIDUwLjIwOTEgMjAgNDhWNDBaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNNDQgMjhDNDQgMjUuNzkwOSA0NS43OTA5IDI0IDQ4IDI0SDc2Qzc4LjIwOTEgMjQgODAgMjUuNzkwOSA4MCAyOFY3MkM4MCA3NC4yODExIDc4LjIwOTEgNzYgNzYgNzZINDhDNDUuODkwOSA3NiA0NCA3NC4yQwOxIDQ0IDcyVjI4WiIgZmlsbj0id2hpdGUiLz4KPC9zdmc+",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["travel", "navigation", "entertainment"],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjU2OCIgdmlld0JveD0iMCAwIDMyMCA1NjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMjAiIGhlaWdodD0iNTY4IiBmaWxsPSIjMWExYTFhIi8+Cjx0ZXh0IHg9IjE2MCIgeT0iMTAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSIyNCI+VHJhdmVsIFN0b3JpZXM8L3RleHQ+Cjx0ZXh0IHg9IjE2MCIgeT0iMzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNENBRjUwIiBmb250LXNpemU4IjE4Ij7wn5mAU3RvcmllcyBzdGFydGVuPC90ZXh0Pgo8L3N2Zz4=",
+      "sizes": "320x568",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Stories starten",
+      "url": "/?action=start",
+      "description": "Sofort neue Geschichten starten"
+    },
+    {
+      "name": "Einstellungen",
+      "url": "/?action=settings",
+      "description": "App-Einstellungen öffnen"
+    }
+  ],
+  "features": [
+    "gps",
+    "speech-synthesis",
+    "offline-cache"
+  ],
+  "prefer_related_applications": false
+}

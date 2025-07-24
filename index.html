@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Travel Stories - Reisegeschichten</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1a1a1a">
+    <meta name="description" content="GPS-basierte Geschichten während der Autofahrt">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Travel Stories">
 </head>
 <body>
     <div class="container">
@@ -67,6 +73,11 @@
                     <div class="setting-item">
                         <label>
                             <input type="checkbox" id="debug-mode"> Debug Modus (Entwicklung)
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="simulation-mode"> Simulationsmodus (Test ohne GPS)
                         </label>
                     </div>
                 </div>

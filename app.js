@@ -14,7 +14,16 @@ class TravelStoriesApp {
         this.locationWatchId = null;
         this.storyCheckInterval = null;
         this.debugMode = false;
+        this.simulationMode = false;
         this.lastNominatimRequest = 0;
+        this.simulationPositions = [
+            { latitude: 47.5704, longitude: 7.5961, name: 'Basel' },
+            { latitude: 46.9480, longitude: 7.4474, name: 'Bern' },
+            { latitude: 47.3769, longitude: 8.5417, name: 'Zürich' },
+            { latitude: 46.5197, longitude: 6.6323, name: 'Lausanne' },
+            { latitude: 46.2044, longitude: 6.1432, name: 'Genf' }
+        ];
+        this.currentSimulationIndex = 0;
         
         this.init();
     }
@@ -97,6 +106,18 @@ class TravelStoriesApp {
         if (debugModeCheckbox) {
             debugModeCheckbox.addEventListener('change', () => {
                 this.toggleDebugMode();
+            });
+        }
+
+        // Simulation mode toggle
+        const simulationModeCheckbox = document.getElementById('simulation-mode');
+        if (simulationModeCheckbox) {
+            simulationModeCheckbox.addEventListener('change', () => {
+                this.simulationMode = simulationModeCheckbox.checked;
+                console.log(`🎭 Simulation mode: ${this.simulationMode ? 'ON' : 'OFF'}`);
+                if (this.simulationMode) {
+                    this.updateStatus('🎭 Simulationsmodus aktiv');
+                }
             });
         }
         
@@ -362,28 +383,38 @@ class TravelStoriesApp {
         console.log('📍 Processing location for story...', { manual, position });
         
         try {
+            // Update status
+            this.updateStatus('🤔 Prüfe ob neue Geschichte nötig...');
+            
             // Check if we should fetch a new story
             const shouldFetch = this.shouldFetchNewStory(position, manual);
             console.log('🤔 Should fetch new story?', shouldFetch);
             
             if (!shouldFetch) {
                 console.log('⏭️ No new story needed - distance too small or conditions not met');
+                this.updateStatus('✅ Position aktuell - keine neue Geschichte nötig');
                 return;
             }
 
             // Show loading state
             this.showLoading(true);
+            this.updateStatus('🗺️ Suche Ortsinformationen...');
             console.log('⏳ Loading state activated');
 
             // Get location information via reverse geocoding
             console.log('🗺️ Starting reverse geocoding...');
             const locationInfo = await this.reverseGeocode(position.latitude, position.longitude);
             console.log('✅ Location info received:', locationInfo);
+            
+            this.updateStatus(`📍 Ort gefunden: ${locationInfo.city || 'Unbekannt'}`);
 
             // Generate and display story
             console.log('📝 Generating story...');
+            this.updateStatus('🤖 Generiere Geschichte...');
             const story = await this.generateStory(locationInfo);
             console.log('✅ Story generated:', story.substring(0, 100) + '...');
+            
+            this.updateStatus('📖 Geschichte bereit!');
             
             // Update UI with story
             const storyElement = document.getElementById('story-content');
@@ -394,6 +425,7 @@ class TravelStoriesApp {
 
             // Speak the story
             console.log('🔊 Starting text-to-speech...');
+            this.updateStatus('🔊 Spreche Geschichte...');
             this.speakStory(story);
 
             // Update last story location
@@ -444,7 +476,21 @@ class TravelStoriesApp {
         }
     }
 
+    // Update status display
+    updateStatus(message) {
+        const connectionStatus = document.getElementById('connection-status');
+        if (connectionStatus) {
+            connectionStatus.innerHTML = message;
+        }
+        console.log('📢 Status:', message);
+    }
+
     async getCurrentLocation() {
+        // Use simulation mode if enabled
+        if (this.simulationMode) {
+            return this.getSimulatedLocation();
+        }
+
         return new Promise((resolve, reject) => {
             if (!navigator.geolocation) {
                 reject(new Error(CONFIG.ERRORS.NO_GEOLOCATION));
@@ -679,6 +725,12 @@ class TravelStoriesApp {
             }
             
             console.log('🔑 API key found, attempting to generate story via Gemini');
+            console.log('🔍 Debug info:', {
+                apiKeyLength: apiKey.length,
+                apiKeyStart: apiKey.substring(0, 6) + '...',
+                locationInfo,
+                userAgent: navigator.userAgent.substring(0, 50)
+            });
             
             // Generate prompt
             const prompt = this.buildPrompt(locationInfo);
@@ -1201,6 +1253,73 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
         return null;
     }
 
+    // Get simulated location for testing
+    getSimulatedLocation() {
+        const position = this.simulationPositions[this.currentSimulationIndex];
+        
+        // Move to next position for next call
+        this.currentSimulationIndex = (this.currentSimulationIndex + 1) % this.simulationPositions.length;
+        
+        const simulatedLocation = {
+            latitude: position.latitude,
+            longitude: position.longitude,
+            accuracy: 10, // High accuracy for simulation
+            timestamp: Date.now()
+        };
+        
+        console.log(`🎭 Simulated location: ${position.name}`, simulatedLocation);
+        this.updateStatus(`🎭 Simulation: ${position.name}`);
+        
+        // Update display
+        this.currentPosition = simulatedLocation;
+        this.updateLocationDisplay(simulatedLocation);
+        
+        return Promise.resolve(simulatedLocation);
+    }
+
+    // Diagnostic function for debugging (call from browser console)
+    diagnose() {
+        console.log('🔍 TRAVEL STORIES DIAGNOSTIC REPORT');
+        console.log('=====================================');
+        
+        // Check API key storage
+        const localStorageKey = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
+        const sessionStorageKey = sessionStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
+        
+        console.log('🔑 API Key Status:');
+        console.log('  localStorage:', localStorageKey ? `Found (${localStorageKey.length} chars)` : 'Not found');
+        console.log('  sessionStorage:', sessionStorageKey ? `Found (${sessionStorageKey.length} chars)` : 'Not found');
+        
+        // Check current position
+        console.log('📍 Position Status:');
+        console.log('  currentPosition:', this.currentPosition);
+        console.log('  lastStoryLocation:', this.lastStoryLocation);
+        
+        // Check app state
+        console.log('🚀 App Status:');
+        console.log('  isRunning:', this.isRunning);
+        console.log('  debugMode:', this.debugMode);
+        console.log('  selectedVoice:', this.selectedVoice?.name || 'None');
+        
+        // Check browser capabilities
+        console.log('🌐 Browser Capabilities:');
+        console.log('  Geolocation:', !!navigator.geolocation);
+        console.log('  Speech Synthesis:', !!window.speechSynthesis);
+        console.log('  localStorage:', typeof Storage !== "undefined");
+        
+        // Test API key format
+        const apiKey = localStorageKey || sessionStorageKey;
+        if (apiKey) {
+            console.log('🔍 API Key Analysis:');
+            console.log('  Starts with AIza:', apiKey.startsWith('AIza'));
+            console.log('  Length:', apiKey.length, '(should be 39)');
+            console.log('  Format looks valid:', /^AIza[A-Za-z0-9_-]{35}$/.test(apiKey));
+        }
+        
+        console.log('=====================================');
+        return 'Diagnostic complete - check console output above';
+    }
+
     // Helper function to show success messages
     showMessage(message) {
         console.log('Success:', message);
@@ -1267,5 +1386,21 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
 
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new TravelStoriesApp();
+    window.travelApp = new TravelStoriesApp();
+    
+    // Make diagnostic function globally accessible
+    window.diagnose = () => window.travelApp.diagnose();
+    
+    console.log('💡 Tip: Type "diagnose()" in console for debugging info');
+    
+    // Register service worker for PWA functionality
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+                console.log('✅ Service Worker registered:', registration.scope);
+            })
+            .catch(error => {
+                console.log('❌ Service Worker registration failed:', error);
+            });
+    }
 });
