@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travel Stories - Reisegeschichten</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚗 Travel Stories</h1>
+            <p>Entdecke interessante Geschichten während deiner Fahrt</p>
+        </header>
+
+        <main>
+            <!-- Status Display -->
+            <div class="status-panel">
+                <div class="location-info">
+                    <span id="current-location">📍 Position wird ermittelt...</span>
+                </div>
+                <div class="connection-status">
+                    <span id="connection-status">🔴 Nicht verbunden</span>
+                </div>
+            </div>
+
+            <!-- Main Control Button -->
+            <div class="control-panel">
+                <button id="main-button" class="main-btn" disabled>
+                    ▶️ Stories starten
+                </button>
+                <button id="stop-button" class="stop-btn" style="display: none;">
+                    ⏹️ Stoppen
+                </button>
+            </div>
+
+            <!-- Story Display -->
+            <div class="story-panel">
+                <div id="story-content" class="story-text">
+                    Willkommen bei Travel Stories! Aktiviere GPS und starte deine Reise.
+                </div>
+                <div class="story-controls">
+                    <button id="repeat-button" class="control-btn" disabled>🔄 Wiederholen</button>
+                    <button id="skip-button" class="control-btn" disabled>⏭️ Überspringen</button>
+                </div>
+            </div>
+
+            <!-- Settings Panel -->
+            <div class="settings-panel">
+                <button id="settings-toggle" class="settings-btn">⚙️ Einstellungen</button>
+                <div id="settings-content" class="settings-content" style="display: none;">
+                    <div class="setting-item">
+                        <label for="api-key">Google Gemini API Key:</label>
+                        <input type="password" id="api-key" placeholder="API-Schlüssel eingeben">
+                        <button id="save-api-key" class="save-btn">💾 Speichern</button>
+                    </div>
+                    <div class="setting-item">
+                        <label for="voice-speed">Sprechgeschwindigkeit:</label>
+                        <input type="range" id="voice-speed" min="0.5" max="2" step="0.1" value="1">
+                        <span id="speed-value">1.0x</span>
+                    </div>
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="dark-mode" checked> Dark Mode
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="debug-mode"> Debug Modus (Entwicklung)
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Error Messages -->
+        <div id="error-message" class="error-message" style="display: none;"></div>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Lade interessante Geschichten...</p>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
