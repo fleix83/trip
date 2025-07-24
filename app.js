@@ -15,6 +15,8 @@ class TravelStoriesApp {
         this.storyCheckInterval = null;
         this.debugMode = false;
         this.simulationMode = false;
+        this.bypassCache = false;
+        this.apiCallCount = 0;
         this.lastNominatimRequest = 0;
         this.simulationPositions = [
             { latitude: 47.5704, longitude: 7.5961, name: 'Basel' },
@@ -717,13 +719,19 @@ class TravelStoriesApp {
         try {
             const cacheKey = this.createCacheKey(locationInfo);
             
-            // Check cache first
+            // Check cache first (unless bypassed)
             const cachedStory = this.getCachedStory(cacheKey);
-            if (cachedStory) {
+            if (cachedStory && !this.bypassCache) {
+                console.log('📋 Using cached story for:', locationInfo.city);
+                console.log('🕒 Cache hit - story from localStorage, no API call made');
                 if (this.debugMode) {
-                    console.log('Using cached story for:', locationInfo.city);
+                    console.log('Cached story:', cachedStory.substring(0, 100) + '...');
                 }
                 return cachedStory;
+            } else if (cachedStory && this.bypassCache) {
+                console.log('🔄 Cache bypassed - will generate new story via API');
+            } else {
+                console.log('📭 No cached story found - will generate new story via API');
             }
             
             // Check API key (try localStorage first, then sessionStorage)
@@ -851,6 +859,10 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
         };
         
         console.log('📤 Sending Gemini API request...', { url: url.replace(apiKey, 'API_KEY_HIDDEN') });
+        
+        // Increment API call counter
+        this.apiCallCount++;
+        console.log(`📊 API Call #${this.apiCallCount}`);
         
         try {
             const response = await fetch(url, {
@@ -1126,7 +1138,8 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
                 <div id="debug-position">Position: Warte auf GPS...</div>
                 <div id="debug-distance">Distanz: N/A</div>
                 <div id="debug-last-story">Letzte Story: N/A</div>
-                <div id="debug-api-calls">API-Aufrufe: 0</div>
+                <div id="debug-api-calls">API-Aufrufe: ${this.apiCallCount}</div>
+                <div id="debug-cache-status">Cache: Aktiv</div>
             `;
             document.querySelector('.container').appendChild(debugPanel);
         }
@@ -1166,6 +1179,16 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
         
         if (debugLastStory && this.lastStoryLocation) {
             debugLastStory.textContent = `Letzte Story: ${this.lastStoryLocation.latitude.toFixed(6)}, ${this.lastStoryLocation.longitude.toFixed(6)}`;
+        }
+        
+        const debugApiCalls = document.getElementById('debug-api-calls');
+        if (debugApiCalls) {
+            debugApiCalls.textContent = `API-Aufrufe: ${this.apiCallCount}`;
+        }
+        
+        const debugCacheStatus = document.getElementById('debug-cache-status');
+        if (debugCacheStatus) {
+            debugCacheStatus.textContent = `Cache: ${this.bypassCache ? 'Deaktiviert' : 'Aktiv'}`;
         }
     }
 
@@ -1344,7 +1367,10 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
         console.log('🚀 App Status:');
         console.log('  isRunning:', this.isRunning);
         console.log('  debugMode:', this.debugMode);
+        console.log('  simulationMode:', this.simulationMode);
         console.log('  selectedVoice:', this.selectedVoice?.name || 'None');
+        console.log('  apiCallCount:', this.apiCallCount);
+        console.log('  cacheBypass:', this.bypassCache);
         
         // Check browser capabilities
         console.log('🌐 Browser Capabilities:');
@@ -1413,6 +1439,30 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
             console.error('❌ Story generation failed:', error);
             return 'FAILED: ' + error.message;
         }
+    }
+
+    // Clear story cache (call from browser console)
+    clearCache() {
+        try {
+            localStorage.removeItem(CONFIG.STORAGE_KEYS.STORY_CACHE);
+            console.log('✅ Story cache cleared');
+            return 'SUCCESS: Cache cleared';
+        } catch (error) {
+            console.error('❌ Failed to clear cache:', error);
+            return 'FAILED: ' + error.message;
+        }
+    }
+
+    // Toggle cache bypass (call from browser console)
+    toggleCacheBypass() {
+        this.bypassCache = !this.bypassCache;
+        console.log(`🔄 Cache bypass: ${this.bypassCache ? 'ON (will force API calls)' : 'OFF (will use cache)'}`);
+        
+        if (this.debugMode) {
+            this.updateDebugInfo();
+        }
+        
+        return `Cache bypass ${this.bypassCache ? 'ENABLED' : 'DISABLED'}`;
     }
 
     // Helper function to show success messages
@@ -1487,11 +1537,15 @@ document.addEventListener('DOMContentLoaded', () => {
     window.diagnose = () => window.travelApp.diagnose();
     window.testApiKeySave = (key) => window.travelApp.testApiKeySave(key);
     window.testStoryGeneration = () => window.travelApp.testStoryGeneration();
+    window.clearCache = () => window.travelApp.clearCache();
+    window.toggleCacheBypass = () => window.travelApp.toggleCacheBypass();
     
     console.log('💡 Debug functions available:');
     console.log('  - diagnose() - Full system diagnostic');
     console.log('  - testApiKeySave("your-key") - Test API key storage');
     console.log('  - testStoryGeneration() - Test story generation with your API key');
+    console.log('  - clearCache() - Clear all cached stories');
+    console.log('  - toggleCacheBypass() - Force new API calls instead of cache');
     
     // Register service worker for PWA functionality
     if ('serviceWorker' in navigator) {
