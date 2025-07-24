@@ -49,9 +49,43 @@ class TravelStoriesApp {
             saveApiKeyBtn.addEventListener('click', () => {
                 const apiKey = apiKeyInput.value.trim();
                 if (apiKey) {
-                    localStorage.setItem(CONFIG.STORAGE_KEYS.API_KEY, apiKey);
-                    this.showMessage('API-Schlüssel gespeichert!');
-                    apiKeyInput.value = ''; // Clear input for security
+                    try {
+                        // Test localStorage availability
+                        localStorage.setItem('test', 'test');
+                        localStorage.removeItem('test');
+                        
+                        // Save API key
+                        localStorage.setItem(CONFIG.STORAGE_KEYS.API_KEY, apiKey);
+                        
+                        // Verify it was saved
+                        const savedKey = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
+                        if (savedKey === apiKey) {
+                            this.showMessage('✅ API-Schlüssel erfolgreich gespeichert!');
+                            console.log('✅ API key saved successfully');
+                            
+                            // Update connection status
+                            const connectionStatus = document.getElementById('connection-status');
+                            if (connectionStatus) {
+                                connectionStatus.innerHTML = '🟢 API-Schlüssel konfiguriert';
+                            }
+                        } else {
+                            throw new Error('Speicherung fehlgeschlagen');
+                        }
+                        
+                        apiKeyInput.value = ''; // Clear input for security
+                        
+                    } catch (error) {
+                        console.error('❌ localStorage error:', error);
+                        this.showError('⚠️ Speichern fehlgeschlagen - Browser-Einstellungen prüfen');
+                        
+                        // Try sessionStorage as fallback
+                        try {
+                            sessionStorage.setItem(CONFIG.STORAGE_KEYS.API_KEY, apiKey);
+                            this.showMessage('⚠️ API-Key temporär gespeichert (nur für diese Sitzung)');
+                        } catch (sessionError) {
+                            this.showError('❌ Speichern nicht möglich - Inkognito-Modus?');
+                        }
+                    }
                 } else {
                     this.showError('Bitte gib einen gültigen API-Schlüssel ein');
                 }
@@ -144,11 +178,13 @@ class TravelStoriesApp {
         }
         
         // Check if API key exists (but don't load it for security)
-        const hasApiKey = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
+        const hasApiKey = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY) || 
+                         sessionStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
         if (hasApiKey) {
             const connectionStatus = document.getElementById('connection-status');
             if (connectionStatus) {
-                connectionStatus.innerHTML = '🟡 API-Schlüssel konfiguriert';
+                const storageType = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY) ? 'permanent' : 'temporär';
+                connectionStatus.innerHTML = `🟡 API-Schlüssel konfiguriert (${storageType})`;
             }
         }
         
@@ -626,9 +662,14 @@ class TravelStoriesApp {
                 return cachedStory;
             }
             
-            // Check API key
-            const apiKey = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
+            // Check API key (try localStorage first, then sessionStorage)
+            let apiKey = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
             if (!apiKey) {
+                apiKey = sessionStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
+            }
+            
+            if (!apiKey) {
+                console.log('📝 No API key found, using fallback story');
                 // Use fallback story if available
                 const fallbackStory = this.getFallbackStory(locationInfo);
                 if (fallbackStory) {
@@ -636,6 +677,8 @@ class TravelStoriesApp {
                 }
                 throw new Error(CONFIG.ERRORS.NO_API_KEY);
             }
+            
+            console.log('🔑 API key found, attempting to generate story via Gemini');
             
             // Generate prompt
             const prompt = this.buildPrompt(locationInfo);
@@ -655,13 +698,15 @@ class TravelStoriesApp {
         } catch (error) {
             console.error('Story generation error:', error);
             
-            // Try fallback story on error
+            // Always try fallback story on mobile errors
             const fallbackStory = this.getFallbackStory(locationInfo);
             if (fallbackStory) {
-                this.showError(`${error.message} - Verwende Offline-Geschichte`);
+                console.log('📱 Using fallback story due to API error on mobile');
+                this.showError(`API-Fehler auf Mobile - Verwende Offline-Geschichte`);
                 return fallbackStory;
             }
             
+            // If no fallback available, throw original error
             throw error;
         }
     }
@@ -683,30 +728,68 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
 
     // Call Gemini API
     async callGeminiAPI(prompt, apiKey) {
+        // Validate API key format
+        if (!apiKey || !apiKey.startsWith('AIza')) {
+            throw new Error(CONFIG.ERRORS.GEMINI_AUTH_ERROR);
+        }
+        
         const url = `${CONFIG.GEMINI_API_URL}?key=${apiKey}`;
         
+        // Simplified request body for better mobile compatibility
         const requestBody = {
             contents: [{
                 parts: [{
-                    text: prompt
+                    text: prompt.trim()
                 }]
             }],
             generationConfig: {
                 temperature: 0.7,
-                topK: 40,
-                topP: 0.95,
-                maxOutputTokens: 200
-            }
+                maxOutputTokens: 150,
+                topP: 0.8,
+                topK: 40
+            },
+            safetySettings: [
+                {
+                    category: "HARM_CATEGORY_HARASSMENT",
+                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                },
+                {
+                    category: "HARM_CATEGORY_HATE_SPEECH", 
+                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                },
+                {
+                    category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                },
+                {
+                    category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                }
+            ]
         };
         
+        console.log('📤 Sending Gemini API request...', { url: url.replace(apiKey, 'API_KEY_HIDDEN') });
+        
         try {
-            const response = await this.fetchWithRetry(url, {
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify(requestBody)
             });
+            
+            console.log('📥 Gemini API response status:', response.status);
+            
+            // Get response text for better error debugging
+            const responseText = await response.text();
+            console.log('📥 Gemini API response:', responseText.substring(0, 200));
+            
+            if (response.status === 400) {
+                console.error('❌ Gemini API 400 Error - Request body:', JSON.stringify(requestBody, null, 2));
+                throw new Error('Ungültige API-Anfrage - Möglicherweise ist der API-Schlüssel falsch konfiguriert');
+            }
             
             if (response.status === 401) {
                 throw new Error(CONFIG.ERRORS.GEMINI_AUTH_ERROR);
@@ -717,16 +800,27 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
             }
             
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+                throw new Error(`HTTP ${response.status}: ${responseText}`);
             }
             
-            const data = await response.json();
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('❌ Failed to parse JSON response:', parseError);
+                throw new Error('Ungültige API-Antwort erhalten');
+            }
+            
             return this.parseGeminiResponse(data);
             
         } catch (error) {
-            if (error.message.includes('GEMINI_')) {
+            console.error('❌ Gemini API call failed:', error);
+            
+            if (error.message.includes('GEMINI_') || error.message.includes('Ungültige')) {
                 throw error;
             }
+            
+            // Network or other errors
             throw new Error(`${CONFIG.ERRORS.STORY_GENERATION_ERROR}: ${error.message}`);
         }
     }
