@@ -38,7 +38,8 @@ const CONFIG = {
         LAST_POSITION: 'travel_stories_last_position',
         SETTINGS: 'travel_stories_settings',
         DARK_MODE: 'travel_stories_dark_mode',
-        STORY_CACHE: 'travel_stories_cache'
+        STORY_CACHE: 'travel_stories_cache',
+        CUSTOM_PROMPT: 'travel_stories_custom_prompt'
     },
     
     // Error Messages

@@ -184,13 +184,22 @@ header p {
 }
 
 .setting-item input[type="password"], 
-.setting-item input[type="range"] {
+.setting-item input[type="range"],
+.setting-item textarea {
     width: 100%;
     padding: var(--padding-sm);
     border: 1px solid var(--bg-tertiary);
     border-radius: var(--border-radius);
     background: var(--bg-primary);
     color: var(--text-primary);
+    font-family: inherit;
+    font-size: var(--font-size-sm);
+    resize: vertical;
+}
+
+.setting-item textarea {
+    min-height: 80px;
+    line-height: 1.4;
 }
 
 .save-btn {

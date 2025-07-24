@@ -207,6 +207,33 @@ class TravelStoriesApp {
             });
         }
         
+        // Story prompt save and reset
+        const savePromptBtn = document.getElementById('save-prompt');
+        const resetPromptBtn = document.getElementById('reset-prompt');
+        const promptTextarea = document.getElementById('story-prompt');
+        
+        if (savePromptBtn && promptTextarea) {
+            savePromptBtn.addEventListener('click', () => {
+                const customPrompt = promptTextarea.value.trim();
+                if (customPrompt) {
+                    localStorage.setItem(CONFIG.STORAGE_KEYS.CUSTOM_PROMPT, customPrompt);
+                    this.showMessage('✅ Story-Prompt erfolgreich gespeichert!');
+                    console.log('💾 Custom prompt saved:', customPrompt.substring(0, 50) + '...');
+                } else {
+                    this.showError('Prompt darf nicht leer sein');
+                }
+            });
+        }
+        
+        if (resetPromptBtn && promptTextarea) {
+            resetPromptBtn.addEventListener('click', () => {
+                localStorage.removeItem(CONFIG.STORAGE_KEYS.CUSTOM_PROMPT);
+                this.loadDefaultPrompt();
+                this.showMessage('🔄 Standard-Prompt wiederhergestellt!');
+                console.log('🔄 Custom prompt reset to default');
+            });
+        }
+        
         console.log('Events bound successfully');
     }
 
@@ -255,7 +282,28 @@ class TravelStoriesApp {
             }
         }
         
+        // Load custom prompt
+        this.loadDefaultPrompt();
+        
         console.log('Settings loaded');
+    }
+
+    // Load default or custom prompt into textarea
+    loadDefaultPrompt() {
+        const promptTextarea = document.getElementById('story-prompt');
+        if (!promptTextarea) return;
+        
+        const customPrompt = localStorage.getItem(CONFIG.STORAGE_KEYS.CUSTOM_PROMPT);
+        const defaultPrompt = `Du bist ein charismatischer Reiseführer. Erzähle eine fesselnde, 90-120 Wörter lange Geschichte über {city}, {region}, {country}.
+
+Fokus auf: Historische Anekdoten, Legenden, interessante Fakten, lokale Besonderheiten.
+Stil: Spannend, unterhaltsam, für Autofahrer geeignet.
+Vermeide: Lange Listen, komplizierte Namen, langweilige Fakten.
+
+Beginne direkt mit der Geschichte, ohne Einleitung.`;
+        
+        promptTextarea.value = customPrompt || defaultPrompt;
+        console.log('📝 Prompt loaded:', customPrompt ? 'Custom' : 'Default');
     }
 
     // Initialize speech synthesis
@@ -810,16 +858,26 @@ class TravelStoriesApp {
     // Build prompt for Gemini API
     buildPrompt(locationInfo) {
         const city = locationInfo.city || 'diesem Ort';
-        const region = locationInfo.state || 'der Region';
+        const region = locationInfo.state || 'der Region';  
         const country = locationInfo.country || 'Deutschland';
         
-        return `Du bist ein charismatischer Reiseführer. Erzähle eine fesselnde, 90-120 Wörter lange Geschichte über ${city}, ${region}, ${country}.
+        // Get custom prompt or use default
+        const customPrompt = localStorage.getItem(CONFIG.STORAGE_KEYS.CUSTOM_PROMPT);
+        const defaultPrompt = `Du bist ein charismatischer Reiseführer. Erzähle eine fesselnde, 90-120 Wörter lange Geschichte über {city}, {region}, {country}.
 
 Fokus auf: Historische Anekdoten, Legenden, interessante Fakten, lokale Besonderheiten.
 Stil: Spannend, unterhaltsam, für Autofahrer geeignet.
 Vermeide: Lange Listen, komplizierte Namen, langweilige Fakten.
 
 Beginne direkt mit der Geschichte, ohne Einleitung.`;
+        
+        const promptTemplate = customPrompt || defaultPrompt;
+        
+        // Replace placeholders with actual location info
+        return promptTemplate
+            .replace(/{city}/g, city)
+            .replace(/{region}/g, region)
+            .replace(/{country}/g, country);
     }
 
     // Call Gemini API
