@@ -57,20 +57,32 @@ class TravelStoriesApp {
         if (saveApiKeyBtn && apiKeyInput) {
             saveApiKeyBtn.addEventListener('click', () => {
                 const apiKey = apiKeyInput.value.trim();
+                console.log('💾 Attempting to save API key...');
+                console.log('  Input value length:', apiKey.length);
+                console.log('  Storage key:', CONFIG.STORAGE_KEYS.API_KEY);
+                console.log('  CONFIG object:', CONFIG.STORAGE_KEYS);
+                
                 if (apiKey) {
                     try {
+                        console.log('🧪 Testing localStorage availability...');
                         // Test localStorage availability
                         localStorage.setItem('test', 'test');
                         localStorage.removeItem('test');
+                        console.log('✅ localStorage test passed');
                         
                         // Save API key
+                        console.log('💾 Saving API key to localStorage...');
                         localStorage.setItem(CONFIG.STORAGE_KEYS.API_KEY, apiKey);
+                        console.log('✅ API key saved to localStorage');
                         
                         // Verify it was saved
                         const savedKey = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
+                        console.log('🔍 Verification - saved key:', savedKey ? `Found (${savedKey.length} chars)` : 'Not found');
+                        console.log('🔍 Keys match:', savedKey === apiKey);
+                        
                         if (savedKey === apiKey) {
                             this.showMessage('✅ API-Schlüssel erfolgreich gespeichert!');
-                            console.log('✅ API key saved successfully');
+                            console.log('✅ API key saved and verified successfully');
                             
                             // Update connection status
                             const connectionStatus = document.getElementById('connection-status');
@@ -78,10 +90,11 @@ class TravelStoriesApp {
                                 connectionStatus.innerHTML = '🟢 API-Schlüssel konfiguriert';
                             }
                         } else {
-                            throw new Error('Speicherung fehlgeschlagen');
+                            throw new Error('Speicherung fehlgeschlagen - Saved key does not match input');
                         }
                         
                         apiKeyInput.value = ''; // Clear input for security
+                        console.log('🧹 Input field cleared');
                         
                     } catch (error) {
                         console.error('❌ localStorage error:', error);
@@ -89,13 +102,18 @@ class TravelStoriesApp {
                         
                         // Try sessionStorage as fallback
                         try {
+                            console.log('🔄 Trying sessionStorage fallback...');
                             sessionStorage.setItem(CONFIG.STORAGE_KEYS.API_KEY, apiKey);
+                            const sessionSaved = sessionStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
+                            console.log('🔍 SessionStorage saved:', sessionSaved ? `Found (${sessionSaved.length} chars)` : 'Not found');
                             this.showMessage('⚠️ API-Key temporär gespeichert (nur für diese Sitzung)');
                         } catch (sessionError) {
+                            console.error('❌ sessionStorage error:', sessionError);
                             this.showError('❌ Speichern nicht möglich - Inkognito-Modus?');
                         }
                     }
                 } else {
+                    console.log('❌ Empty API key input');
                     this.showError('Bitte gib einen gültigen API-Schlüssel ein');
                 }
             });
@@ -709,13 +727,20 @@ class TravelStoriesApp {
             }
             
             // Check API key (try localStorage first, then sessionStorage)
+            console.log('🔍 Checking for API key...');
+            console.log('  localStorage keys:', Object.keys(localStorage));
+            console.log('  CONFIG.STORAGE_KEYS.API_KEY:', CONFIG.STORAGE_KEYS.API_KEY);
+            
             let apiKey = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
+            console.log('  localStorage API key:', apiKey ? `Found (${apiKey.length} chars)` : 'Not found');
+            
             if (!apiKey) {
                 apiKey = sessionStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
+                console.log('  sessionStorage API key:', apiKey ? `Found (${apiKey.length} chars)` : 'Not found');
             }
             
             if (!apiKey) {
-                console.log('📝 No API key found, using fallback story');
+                console.log('❌ No API key found anywhere, using fallback story');
                 // Use fallback story if available
                 const fallbackStory = this.getFallbackStory(locationInfo);
                 if (fallbackStory) {
@@ -725,6 +750,11 @@ class TravelStoriesApp {
             }
             
             console.log('🔑 API key found, attempting to generate story via Gemini');
+            console.log('🔍 API key details:', {
+                length: apiKey.length,
+                startsWithAIza: apiKey.startsWith('AIza'),
+                preview: apiKey.substring(0, 8) + '...'
+            });
             console.log('🔍 Debug info:', {
                 apiKeyLength: apiKey.length,
                 apiKeyStart: apiKey.substring(0, 6) + '...',
@@ -1282,13 +1312,28 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
         console.log('🔍 TRAVEL STORIES DIAGNOSTIC REPORT');
         console.log('=====================================');
         
+        // Check CONFIG object
+        console.log('⚙️ Configuration:');
+        console.log('  CONFIG.STORAGE_KEYS:', CONFIG.STORAGE_KEYS);
+        console.log('  API_KEY storage key:', CONFIG.STORAGE_KEYS.API_KEY);
+        console.log('  CONFIG defined:', typeof CONFIG !== 'undefined');
+        
         // Check API key storage
+        console.log('🔑 Storage Inspection:');
+        console.log('  All localStorage keys:', Object.keys(localStorage));
+        console.log('  All sessionStorage keys:', Object.keys(sessionStorage));
+        
         const localStorageKey = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
         const sessionStorageKey = sessionStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
         
         console.log('🔑 API Key Status:');
-        console.log('  localStorage:', localStorageKey ? `Found (${localStorageKey.length} chars)` : 'Not found');
-        console.log('  sessionStorage:', sessionStorageKey ? `Found (${sessionStorageKey.length} chars)` : 'Not found');
+        console.log('  localStorage key lookup:', CONFIG.STORAGE_KEYS.API_KEY, '→', localStorageKey ? `Found (${localStorageKey.length} chars)` : 'Not found');
+        console.log('  sessionStorage key lookup:', CONFIG.STORAGE_KEYS.API_KEY, '→', sessionStorageKey ? `Found (${sessionStorageKey.length} chars)` : 'Not found');
+        
+        // Manual storage check
+        console.log('🔍 Manual Storage Check:');
+        console.log('  localStorage["travel_stories_api_key"]:', localStorage.getItem('travel_stories_api_key'));
+        console.log('  sessionStorage["travel_stories_api_key"]:', sessionStorage.getItem('travel_stories_api_key'));
         
         // Check current position
         console.log('📍 Position Status:');
@@ -1318,6 +1363,56 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
         
         console.log('=====================================');
         return 'Diagnostic complete - check console output above';
+    }
+
+    // Test function to manually save API key (call from browser console)
+    testApiKeySave(testKey = 'test-key-12345') {
+        console.log('🧪 TESTING API KEY SAVE/RETRIEVE');
+        console.log('=================================');
+        
+        try {
+            console.log('1. Saving test key:', testKey);
+            localStorage.setItem(CONFIG.STORAGE_KEYS.API_KEY, testKey);
+            
+            console.log('2. Retrieving saved key...');
+            const retrieved = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
+            console.log('3. Retrieved key:', retrieved);
+            
+            console.log('4. Keys match:', retrieved === testKey);
+            
+            console.log('5. Cleaning up...');
+            localStorage.removeItem(CONFIG.STORAGE_KEYS.API_KEY);
+            
+            return retrieved === testKey ? 'SUCCESS' : 'FAILED';
+        } catch (error) {
+            console.error('ERROR:', error);
+            return 'ERROR: ' + error.message;
+        }
+    }
+
+    // Force trigger story generation for testing (call from browser console)
+    async testStoryGeneration() {
+        console.log('🧪 TESTING STORY GENERATION');
+        console.log('============================');
+        
+        const testLocation = {
+            city: 'Basel',
+            state: 'Basel-Stadt',
+            country: 'Schweiz',
+            displayName: 'Basel, Basel-Stadt, Schweiz'
+        };
+        
+        try {
+            console.log('🔄 Attempting to generate story for:', testLocation);
+            const story = await this.generateStory(testLocation);
+            console.log('✅ Story generated successfully!');
+            console.log('📖 Story:', story.substring(0, 100) + '...');
+            
+            return 'SUCCESS: Story generated';
+        } catch (error) {
+            console.error('❌ Story generation failed:', error);
+            return 'FAILED: ' + error.message;
+        }
     }
 
     // Helper function to show success messages
@@ -1388,10 +1483,15 @@ Beginne direkt mit der Geschichte, ohne Einleitung.`;
 document.addEventListener('DOMContentLoaded', () => {
     window.travelApp = new TravelStoriesApp();
     
-    // Make diagnostic function globally accessible
+    // Make diagnostic functions globally accessible
     window.diagnose = () => window.travelApp.diagnose();
+    window.testApiKeySave = (key) => window.travelApp.testApiKeySave(key);
+    window.testStoryGeneration = () => window.travelApp.testStoryGeneration();
     
-    console.log('💡 Tip: Type "diagnose()" in console for debugging info');
+    console.log('💡 Debug functions available:');
+    console.log('  - diagnose() - Full system diagnostic');
+    console.log('  - testApiKeySave("your-key") - Test API key storage');
+    console.log('  - testStoryGeneration() - Test story generation with your API key');
     
     // Register service worker for PWA functionality
     if ('serviceWorker' in navigator) {
